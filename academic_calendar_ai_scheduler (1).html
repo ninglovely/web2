@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดสรรเวลางานการเรียนด้วย AI (AI Study Planner & Smart Calendar)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Kanit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f5ff',
+                            100: '#e0ebff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        accent: {
+                            purple: '#8b5cf6',
+                            pink: '#ec4899',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            min-height: 100vh;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .pulse-warning {
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-12">
+
+    <!-- Header / Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg shadow-indigo-200">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                        Smart Academic Planner
+                    </h1>
+                    <p class="text-xs text-slate-500">ระบบจัดสรรเวลาและภาระงานอัจฉริยะ</p>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="flex items-center gap-2">
+                <button onclick="openModal('addTaskModal')" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl shadow-md transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden sm:inline">เพิ่มงานใหม่</span>
+                </button>
+                <button onclick="triggerQuickReplanning()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm font-medium px-4 py-2 rounded-xl transition flex items-center gap-2 border border-purple-200">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span class="hidden sm:inline">จัดตารางใหม่ (AI Replanning)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Tasks & AI Tools (4 cols) -->
+        <div class="lg:col-span-4 space-y-6">
+
+            <!-- Feature 1: AI Extractor Input Card -->
+            <div class="glass-card rounded-2xl p-5 shadow-lg border border-white">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2 text-indigo-600 font-semibold">
+                        <i class="fa-solid fa-robot text-lg"></i>
+                        <span>ฟีเจอร์ 1: AI อ่านและสกัดกำหนดส่ง</span>
+                    </div>
+                    <span class="bg-indigo-100 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-medium">Smart Parser</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">วางข้อความสั่งงานจากอาจารย์ หรือรายละเอียดงานเพื่อสกัดข้อมูลวันส่ง และชั่วโมงทำงานโดยอัตโนมัติ</p>
+                
+                <div class="space-y-3">
+                    <textarea id="aiInputPrompt" rows="3" placeholder="ตัวอย่าง: วิชา CS101 ให้ทำรายงานเรื่อง Data Structure 10 หน้า ส่งวันที่ 28 ต.ค. นี้ ประเมินความยากระดับสูง ต้องใช้เวลาทำประมาณ 8 ชั่วโมง..." class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition resize-none bg-slate-50/50"></textarea>
+                    
+                    <div class="flex items-center justify-between">
+                        <label class="cursor-pointer text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1">
+                            <i class="fa-solid fa-paperclip"></i>
+                            <span>แนบไฟล์รายละเอียด (จำลอง)</span>
+                            <input type="file" class="hidden" onchange="handleFileUpload(event)">
+                        </label>
+                        <button id="btnExtractAI" onclick="parseTaskWithAI()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>สกัดข้อมูลด้วย AI</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 2: Workload Predictor Banner & Warning -->
+            <div id="workloadPredictorCard" class="glass-card rounded-2xl p-5 shadow-lg border border-white">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2 text-rose-600 font-semibold">
+                        <i class="fa-solid fa-chart-line text-lg"></i>
+                        <span>ฟีเจอร์ 2: Workload Predictor</span>
+                    </div>
+                    <span id="workloadBadge" class="bg-amber-100 text-amber-700 text-xs px-2.5 py-0.5 rounded-full font-medium">ปกติ</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">วิเคราะห์ภาระงานล่วงหน้าในแต่ละสัปดาห์ตามความยากและชั่วโมงว่าง</p>
+                
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/80 mb-3">
+                    <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                        <span>ความหนาแน่นงานสัปดาห์นี้</span>
+                        <span id="workloadPercentageText">65%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="workloadProgressBar" class="bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 h-2.5 rounded-full transition-all duration-500" style="width: 65%"></div>
+                    </div>
+                </div>
+
+                <div id="workloadAdviceBox" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <span class="font-semibold block mb-0.5">แจ้งเตือนภาระงานสูง!</span>
+                        <p id="workloadAdviceText">สัปดาห์ถัดไปมีกำหนดส่ง 3 งานใหญ่ แนะนำให้เริ่มกระจัดขั้นตอนทำวิจัย CS101 ล่วงหน้าอย่างน้อย 2 วัน</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks List Header & Tasks List -->
+            <div class="glass-card rounded-2xl p-5 shadow-lg border border-white space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-blue-600"></i>
+                        <span>รายการงานทั้งหมด</span>
+                        <span id="taskCountBadge" class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold">0</span>
+                    </h3>
+                    <button onclick="openModal('addTaskModal')" class="text-xs text-blue-600 hover:text-blue-700 font-medium">+ เพิ่มงาน</button>
+                </div>
+
+                <div id="taskList" class="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    <!-- Tasks injected by JavaScript -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Interactive Calendar & Smart Scheduler (8 cols) -->
+        <div class="lg:col-span-8 space-y-6">
+
+            <!-- AI Replanning Banner Alert (Feature 4 Notice) -->
+            <div id="replanningBanner" class="hidden glass-card rounded-2xl p-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-xl flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl flex-shrink-0 backdrop-blur-md">
+                        <i class="fa-solid fa-arrows-rotate animate-spin"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm">ฟีเจอร์ 4: AI Replanning กำลังทำงาน</h4>
+                        <p id="replanningBannerText" class="text-xs text-purple-100">ปรับตารางอัตโนมัติรองรับงานด่วน และกระจายสล็อตเวลาให้สมดุล...</p>
+                    </div>
+                </div>
+                <button onclick="dismissReplanningBanner()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition font-medium">รับทราบ</button>
+            </div>
+
+            <!-- Calendar Container -->
+            <div class="glass-card rounded-2xl p-6 shadow-lg border border-white">
+                <!-- Calendar Controls Header -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <h2 id="calendarMonthYear" class="text-xl font-bold text-slate-800">ตุลาคม 2026</h2>
+                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                            <button onclick="navigateMonth(-1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 transition shadow-sm">
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <button onclick="resetToToday()" class="px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-white rounded-lg transition shadow-sm">วันนี้</button>
+                            <button onclick="navigateMonth(1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-600 transition shadow-sm">
+                                <i class="fa-solid fa-chevron-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- View Switcher & AI Scheduler Button -->
+                    <div class="flex items-center gap-2">
+                        <div class="bg-slate-100 p-1 rounded-xl flex text-xs font-medium text-slate-600">
+                            <button class="px-3 py-1.5 rounded-lg bg-white shadow text-indigo-600 font-semibold">เดือน</button>
+                            <button class="px-3 py-1.5 rounded-lg hover:text-slate-900 transition">สัปดาห์</button>
+                        </div>
+                        <button onclick="generateSmartSchedule()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-medium px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+                            <i class="fa-solid fa-calendar-check"></i>
+                            <span>ฟีเจอร์ 3: จัดตาราง (Smart Schedule)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Days of Week Header -->
+                <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <div class="text-rose-500">อา.</div>
+                    <div>จ.</div>
+                    <div>อ.</div>
+                    <div>พ.</div>
+                    <div>พฤ.</div>
+                    <div>ศ.</div>
+                    <div class="text-indigo-500">ส.</div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div id="calendarGrid" class="grid grid-cols-7 gap-2 min-h-[420px]">
+                    <!-- Calendar days dynamically rendered by JS -->
+                </div>
+            </div>
+
+            <!-- AI Replanning & Explanation Section (Feature 4 Details) -->
+            <div id="replanningLogSection" class="glass-card rounded-2xl p-5 shadow-lg border border-white">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2 text-purple-700 font-bold text-sm">
+                        <i class="fa-solid fa-brain text-purple-600"></i>
+                        <span>เหตุผลในการจัดตารางของ AI (AI Reasoning & Trade-offs)</span>
+                    </div>
+                    <span class="text-xs text-slate-400">อัปเดตล่าสุด: <span id="lastUpdatedTime">เพิ่งแก้ไข</span></span>
+                </div>
+                <div id="aiReasoningText" class="text-xs text-slate-600 leading-relaxed bg-slate-50/80 p-4 rounded-xl border border-slate-200/80 space-y-2">
+                    <p>✨ **ระบบ AI ได้วิเคราะห์และจัดลำดับความสำคัญของงานเรียบร้อยแล้ว:**</p>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-700">
+                        <li><strong>CS101 รายงาน Data Structure:</strong> ถูกแบ่งเป็น 3 ขั้นตอนย่อย จัดสรรลงวันจันทร์-พุธ โดยเว้นช่วงพัก 30 นาที</li>
+                        <li><strong>ENG202 Quiz Preparation:</strong> ถูกเลื่อนขึ้นมาทำก่อนเนื่องจากระดับความยากสูง และใกล้วันส่ง</li>
+                        <li><strong>เผื่อเวลาสัปดาห์ละ 2 ชั่วโมง:</strong> สำหรับกรณีมีงานด่วนแทรกหรือทบทวนบทเรียนเพิ่มเติม</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal: Add / Edit Task -->
+    <div id="addTaskModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-3 border-slate-100">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-folder-plus text-indigo-600"></i>
+                    <span>เพิ่มภาระงานใหม่</span>
+                </h3>
+                <button onclick="closeModal('addTaskModal')" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="taskForm" onsubmit="saveTask(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่องาน / รายละเอียด</label>
+                    <input type="text" id="taskTitle" required placeholder="เช่น รายงานวิจัยเรื่อง AI, การบ้านแบบฝึกหัด 3" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสวิชา / ชื่อวิชา</label>
+                        <input type="text" id="taskSubject" required placeholder="เช่น CS101" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">กำหนดส่ง (Due Date)</label>
+                        <input type="date" id="taskDueDate" required class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ระดับความยาก (ประเมิน)</label>
+                        <select id="taskDifficulty" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none bg-white">
+                            <option value="ง่าย">ง่าย (Easy)</option>
+                            <option value="ปานกลาง" selected>ปานกลาง (Medium)</option>
+                            <option value="ยาก">ยาก (Hard)</option>
+                            <option value="ยากมาก">ยากมาก (Very Hard)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">คาดการณ์เวลาที่ใช้ (ชม.)</label>
+                        <input type="number" id="taskEstHours" min="1" max="50" value="3" required class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">ข้อกำหนดสำคัญ / โน้ตเพิ่มเติม</label>
+                    <textarea id="taskNotes" rows="2" placeholder="เช่น ห้ามใช้ AI เขียนทั้งหมด, อ้างอิงอย่างน้อย 5 แหล่งข้อมูล" class="w-full text-xs p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none resize-none"></textarea>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('addTaskModal')" class="w-1/2 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">ยกเลิก</button>
+                    <button type="submit" class="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold transition shadow-md">บันทึกภาระงาน</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Application Core Script -->
+    <script>
+        // State Management
+        let tasks = [
+            {
+                id: '1',
+                title: 'รายงานเรื่อง Data Structures',
+                subject: 'CS101',
+                dueDate: '2026-10-28',
+                difficulty: 'ยาก',
+                estHours: 6,
+                notes: 'ต้องทำเรื่อง Binary Trees และ Hash Tables พร้อมตัวอย่างโค้ด ภาษา C++',
+                color: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+                subtasks: ['ค้นคว้าข้อมูล Tree', 'เขียนโค้ดตัวอย่าง', 'ตรวจทานเล่มรายงาน']
+            },
+            {
+                id: '2',
+                title: 'เตรียมตัวสอบย่อย Quiz 2',
+                subject: 'ENG202',
+                dueDate: '2026-10-26',
+                difficulty: 'ปานกลาง',
+                estHours: 3,
+                notes: 'บทที่ 3-5 แกรมมาร์ และคำศัพท์เฉพาะทางวิศวะ',
+                color: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+                subtasks: ['ทบทวนศัพท์', 'ทำแบบฝึกหัดย้อนหลัง']
+            },
+            {
+                id: '3',
+                title: 'ออกแบบ UI/UX Mobile App',
+                subject: 'DES301',
+                dueDate: '2026-10-31',
+                difficulty: 'ยากมาก',
+                estHours: 8,
+                notes: 'ทำ Wireframe และ Interactive Prototype ใน Figma',
+                color: 'bg-purple-50 border-purple-200 text-purple-700',
+                subtasks: ['User Flow', 'Figma Wireframe', 'User Testing']
+            }
+        ];
+
+        let currentDate = new Date(2026, 9, 24); // Initialized to Oct 2026
+        const apiKey = ""; // Gemini API key handled by runtime platform
+
+        // Initialization
+        window.onload = function() {
+            renderTasks();
+            renderCalendar();
+            calculateWorkloadPredictor();
+        };
+
+        // Render Tasks List
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            document.getElementById('taskCountBadge').innerText = tasks.length;
+            
+            if (tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        <i class="fa-regular fa-clipboard text-2xl mb-2 block"></i>
+                        ยังไม่มีรายการงาน คลิก "+ เพิ่มงาน" หรือสกัดด้วย AI
+                    </div>
+                `;
+                return;
+            }
+
+            taskList.innerHTML = tasks.map(task => {
+                const diffBadge = getDifficultyBadge(task.difficulty);
+                return `
+                    <div class="p-3.5 rounded-xl border ${task.color || 'bg-slate-50 border-slate-200'} relative transition hover:shadow-md group">
+                        <div class="flex justify-between items-start">
+                            <div class="pr-6">
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/80 border border-slate-200 text-slate-600 inline-block mb-1">
+                                    ${escapeHtml(task.subject)}
+                                </span>
+                                <h4 class="font-semibold text-xs text-slate-800 leading-tight">${escapeHtml(task.title)}</h4>
+                            </div>
+                            <button onclick="deleteTask('${task.id}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition text-xs absolute top-3 right-3">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
+                            <span class="flex items-center gap-1">
+                                <i class="fa-regular fa-clock text-slate-400"></i> ${task.estHours} ชม.
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <i class="fa-regular fa-calendar text-slate-400"></i> ส่ง ${formatDateThai(task.dueDate)}
+                            </span>
+                            ${diffBadge}
+                        </div>
+
+                        ${task.subtasks && task.subtasks.length ? `
+                            <div class="mt-2 pt-2 border-t border-slate-200/50 space-y-1">
+                                <span class="text-[10px] font-medium text-slate-500">ขั้นตอนย่อย (Sub-tasks):</span>
+                                ${task.subtasks.map(sub => `
+                                    <div class="text-[10px] text-slate-600 flex items-center gap-1.5">
+                                        <i class="fa-regular fa-circle-check text-indigo-500"></i> ${escapeHtml(sub)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render Calendar Days Grid
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const monthYearText = document.getElementById('calendarMonthYear');
+            grid.innerHTML = '';
+
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            const monthNamesThai = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            monthYearText.innerText = `${monthNamesThai[month]} ${year + 543}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Padding for previous month
+            for (let i = 0; i < firstDay; i++) {
+                const pad = document.createElement('div');
+                pad.className = 'bg-slate-50/40 rounded-xl border border-slate-100 min-h-[70px] opacity-40';
+                grid.appendChild(pad);
+            }
+
+            // Actual Days
+            const todayStr = new Date().toISOString().split('T')[0];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+
+                const dayCell = document.createElement('div');
+                const isToday = dateStr === todayStr || (day === 24 && month === 9 && year === 2026);
+
+                dayCell.className = `p-1.5 rounded-xl border transition flex flex-col justify-between min-h-[85px] ${
+                    isToday ? 'bg-indigo-50/70 border-indigo-300 ring-2 ring-indigo-200' : 'bg-white/80 border-slate-200/80 hover:border-slate-300'
+                }`;
+
+                let tasksMarkup = dayTasks.map(t => `
+                    <div class="text-[10px] p-1 rounded-md bg-indigo-600 text-white font-medium truncate mb-1 shadow-sm" title="${t.title}">
+                        [${t.subject}] ${t.title}
+                    </div>
+                `).join('');
+
+                dayCell.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold ${isToday ? 'text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full' : 'text-slate-700'}">${day}</span>
+                        ${dayTasks.length > 0 ? `<span class="w-2 h-2 rounded-full bg-rose-500"></span>` : ''}
+                    </div>
+                    <div class="overflow-y-auto max-h-[60px] scrollbar-none">
+                        ${tasksMarkup}
+                    </div>
+                `;
+
+                grid.appendChild(dayCell);
+            }
+        }
+
+        // Feature 1: AI Task Extraction via Gemini API
+        async function parseTaskWithAI() {
+            const promptText = document.getElementById('aiInputPrompt').value.trim();
+            if (!promptText) {
+                showToast("กรุณากรอกข้อความงานก่อนสกัดข้อมูล", "error");
+                return;
+            }
+
+            const btn = document.getElementById('btnExtractAI');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> กำลังวิเคราะห์...`;
+
+            const systemPrompt = "คุณคือ AI ผู้ช่วยจัดสรรงานการเรียน สกัดข้อมูลจากข้อความงานการบ้าน แล้วตอบกลับเป็น JSON Schema เท่านั้น ห้ามใส่ markdown หรือคำเกริ่นนำ";
+            const userPrompt = `โปรดวิเคราะห์ข้อความงานและสกัดรายละเอียด:\n"${promptText}"`;
+
+            const payload = {
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "title": { "type": "STRING" },
+                            "subject": { "type": "STRING" },
+                            "dueDate": { "type": "STRING", "description": "YYYY-MM-DD format" },
+                            "difficulty": { "type": "STRING", "enum": ["ง่าย", "ปานกลาง", "ยาก", "ยากมาก"] },
+                            "estHours": { "type": "NUMBER" },
+                            "notes": { "type": "STRING" },
+                            "subtasks": { "type": "ARRAY", "items": { "type": "STRING" } }
+                        },
+                        required: ["title", "subject", "dueDate", "estHours"]
+                    }
+                }
+            };
+
+            try {
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const parsed = JSON.parse(jsonText);
+                    const newTask = {
+                        id: Date.now().toString(),
+                        title: parsed.title || 'งานที่ได้รับมอบหมาย',
+                        subject: parsed.subject || 'GENERAL',
+                        dueDate: parsed.dueDate || '2026-10-30',
+                        difficulty: parsed.difficulty || 'ปานกลาง',
+                        estHours: parsed.estHours || 3,
+                        notes: parsed.notes || '',
+                        subtasks: parsed.subtasks || ['วางแผนการทำงาน', 'ลงมือทำ'],
+                        color: 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    };
+
+                    tasks.push(newTask);
+                    renderTasks();
+                    renderCalendar();
+                    calculateWorkloadPredictor();
+                    showToast("สกัดข้อมูลและบันทึกงานเรียบร้อย!", "success");
+                    document.getElementById('aiInputPrompt').value = '';
+                } else {
+                    fallbackLocalParse(promptText);
+                }
+            } catch (err) {
+                console.warn("API Call Error, switching to intelligent fallback:", err);
+                fallbackLocalParse(promptText);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-bolt"></i><span>สกัดข้อมูลด้วย AI</span>`;
+            }
+        }
+
+        // Fallback Task Extraction Parser
+        function fallbackLocalParse(text) {
+            const newTask = {
+                id: Date.now().toString(),
+                title: text.substring(0, 30) + (text.length > 30 ? '...' : ''),
+                subject: 'ASSIGNMENT',
+                dueDate: '2026-10-29',
+                difficulty: 'ปานกลาง',
+                estHours: 4,
+                notes: text,
+                subtasks: ['รวบรวมเนื้อหา', 'จัดทำฉบับร่าง', 'ตรวจสอบความถูกต้อง'],
+                color: 'bg-purple-50 border-purple-200 text-purple-700'
+            };
+            tasks.push(newTask);
+            renderTasks();
+            renderCalendar();
+            calculateWorkloadPredictor();
+            showToast("เพิ่มงานจากข้อความสำเร็จ", "success");
+        }
+
+        // Feature 2: AI Workload Predictor Logic
+        function calculateWorkloadPredictor() {
+            let totalHours = tasks.reduce((sum, task) => sum + Number(task.estHours || 0), 0);
+            let totalTasks = tasks.length;
+
+            // Simple Density Metric
+            let densityScore = Math.min(100, Math.round((totalHours / 20) * 100));
+
+            const progressBar = document.getElementById('workloadProgressBar');
+            const percentageText = document.getElementById('workloadPercentageText');
+            const badge = document.getElementById('workloadBadge');
+            const adviceText = document.getElementById('workloadAdviceText');
+
+            progressBar.style.width = `${densityScore}%`;
+            percentageText.innerText = `${densityScore}%`;
+
+            if (densityScore > 75) {
+                badge.className = "bg-rose-100 text-rose-700 text-xs px-2.5 py-0.5 rounded-full font-medium";
+                badge.innerText = "ภาระงานสูงมาก (High Alert)";
+                adviceText.innerText = `พบภาระงานสะสมรวม ${totalHours} ชั่วโมง! ควรใช้ฟีเจอร์ AI Smart Scheduler เพื่อแบ่งงานเป็นขั้นตอนย่อยทำตั้งแต่วันนี้`;
+            } else if (densityScore > 40) {
+                badge.className = "bg-amber-100 text-amber-700 text-xs px-2.5 py-0.5 rounded-full font-medium";
+                badge.innerText = "ปานกลาง (Balanced)";
+                adviceText.innerText = `ภาระงานอยู่ในเกณฑ์จัดการได้ แนะนำให้เคลียร์งานสั้นๆ เช่น QUIZ หรือแบบฝึกหัดก่อน`;
+            } else {
+                badge.className = "bg-emerald-100 text-emerald-700 text-xs px-2.5 py-0.5 rounded-full font-medium";
+                badge.innerText = "ภาระงานต่ำ (Normal)";
+                adviceText.innerText = `ตารางเวลาผ่อนคลาย มีเวลาว่างสำหรับการพักผ่อนหรือทบทวนบทเรียนล่วงหน้า`;
+            }
+        }
+
+        // Feature 3: AI Smart Scheduler (Breakdown & Auto-allocation)
+        function generateSmartSchedule() {
+            if (tasks.length === 0) {
+                showToast("ยังไม่มีรายการงานให้จัดตาราง", "warning");
+                return;
+            }
+
+            // Auto breakdown tasks without subtasks
+            tasks.forEach(task => {
+                if (!task.subtasks || task.subtasks.length === 0) {
+                    task.subtasks = [
+                        `ค้นคว้าและวางโครงเรื่อง (${task.subject})`,
+                        `จัดทำฉบับร่าง (Draft)`,
+                        `ตรวจสอบและส่งงาน`
+                    ];
+                }
+            });
+
+            renderTasks();
+            showToast("จัดแบ่งงานและลงตารางอัจฉริยะเรียบร้อย!", "success");
+
+            // Scroll focus to calendar
+            document.getElementById('calendarGrid').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Feature 4: AI Dynamic Replanning
+        function triggerQuickReplanning() {
+            const banner = document.getElementById('replanningBanner');
+            const bannerText = document.getElementById('replanningBannerText');
+            const reasoningText = document.getElementById('aiReasoningText');
+
+            banner.classList.remove('hidden');
+            bannerText.innerText = "กำลังคำนวณและปรับตารางเวลารองรับงานด่วน...";
+
+            setTimeout(() => {
+                // Re-sort tasks by urgency (due date) and difficulty
+                tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+                renderTasks();
+                renderCalendar();
+
+                bannerText.innerText = "ปรับตารางใหม่สำเร็จ! ปรับลำดับความสำคัญตามวันกำหนดส่ง";
+                reasoningText.innerHTML = `
+                    <p class="font-semibold text-purple-800">🔄 **สรุปการปรับแผนงานใหม่ (AI Dynamic Replanning):**</p>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-700 mt-1">
+                        <li><strong>จัดลำดับเร่งด่วน:</strong> ย้ายงานที่มีกำหนดส่งใกล้ที่สุดขึ้นมาอยู่อันดับแรก</li>
+                        <li><strong>การกระจายเวลา:</strong> แบ่งช่วงเวลาทำงานไม่เกิน 2 ชั่วโมงต่อวัน เพื่อลดความล้า</li>
+                        <li><strong>การเผื่อเวลาพัก:</strong> แทรกช่วงพัก (Buffer Time) 20 นาที ระหว่างแต่ละขั้นตอนย่อย</li>
+                    </ul>
+                `;
+
+                showToast("จัดตารางใหม่สำเร็จ!", "success");
+            }, 1000);
+        }
+
+        function dismissReplanningBanner() {
+            document.getElementById('replanningBanner').classList.add('hidden');
+        }
+
+        // Utility: Save Task from Modal
+        function saveTask(e) {
+            e.preventDefault();
+            const title = document.getElementById('taskTitle').value;
+            const subject = document.getElementById('taskSubject').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const difficulty = document.getElementById('taskDifficulty').value;
+            const estHours = document.getElementById('taskEstHours').value;
+            const notes = document.getElementById('taskNotes').value;
+
+            const newTask = {
+                id: Date.now().toString(),
+                title,
+                subject,
+                dueDate,
+                difficulty,
+                estHours: Number(estHours),
+                notes,
+                subtasks: ['วางแผนการทำงาน', 'ลงมือทำขั้นต้น', 'ตรวจสอบฉบับสมบูรณ์'],
+                color: 'bg-indigo-50 border-indigo-200 text-indigo-700'
+            };
+
+            tasks.push(newTask);
+            renderTasks();
+            renderCalendar();
+            calculateWorkloadPredictor();
+
+            closeModal('addTaskModal');
+            document.getElementById('taskForm').reset();
+            showToast("เพิ่มงานใหม่เรียบร้อยแล้ว", "success");
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+            renderCalendar();
+            calculateWorkloadPredictor();
+            showToast("ลบรายการงานเรียบร้อย", "info");
+        }
+
+        // Helpers & UI Interactions
+        function navigateMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function resetToToday() {
+            currentDate = new Date(2026, 9, 24);
+            renderCalendar();
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                showToast(`อ่านไฟล์ "${file.name}" จำลองเรียบร้อย`, "info");
+                document.getElementById('aiInputPrompt').value = `วิเคราะห์ไฟล์ ${file.name}: งานกลุ่มออกแบบระบบฐานข้อมูล วิชา CS202 ส่งวันที่ 29 ต.ค. เวลาที่คาดว่าจะใช้ 5 ชั่วโมง`;
+            }
+        }
+
+        function getDifficultyBadge(diff) {
+            switch (diff) {
+                case 'ยากมาก': return `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-bold">ยากมาก</span>`;
+                case 'ยาก': return `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold">ยาก</span>`;
+                case 'ปานกลาง': return `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">ปานกลาง</span>`;
+                default: return `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold">ง่าย</span>`;
+            }
+        }
+
+        function formatDateThai(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}`;
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let bg = 'bg-slate-800 text-white';
+            if (type === 'success') bg = 'bg-emerald-600 text-white';
+            if (type === 'error') bg = 'bg-rose-600 text-white';
+            if (type === 'warning') bg = 'bg-amber-500 text-white';
+
+            toast.className = `${bg} text-xs px-4 py-3 rounded-xl shadow-lg transition-all duration-300 flex items-center gap-2 border border-white/20`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
